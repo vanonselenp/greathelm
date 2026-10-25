@@ -13,11 +13,11 @@ defaults:
     depth: 3           # columns per side, counting the one cut by the edge
 
 maps:
-  - {image: art/01-village-well.png, title: 01 / Village Well, size: 185x131.25mm}
-  - {image: art/02-broken-gate.png, title: 02 / Broken Gate, size: 185x131.25mm}
-  - {image: art/03-bridge-and-ford.png, title: 03 / Bridge and Ford, size: 185x131.25mm}
-  - {image: art/04-ruined-chapel.png, title: 04 / Ruined Chapel, size: 185x131.25mm}
-  - {image: art/05-quickstart-map.png, title: 05 / Quickstart Map, size: 185x131.25mm}
+  - {image: art/01-village-well.png, title: 01 / Village Well, size: 170x120.21mm}
+  - {image: art/02-broken-gate.png, title: 02 / Broken Gate, size: 170x120.21mm}
+  - {image: art/03-bridge-and-ford.png, title: 03 / Bridge and Ford, size: 170x120.21mm}
+  - {image: art/04-ruined-chapel.png, title: 04 / Ruined Chapel, size: 170x120.21mm}
+  - {image: art/05-quickstart-map.png, title: 05 / Quickstart Map, size: 170x120.21mm}
 
   # # Sized by hex count: 14 whole columns, 9 hexes tall, no zones.
   # - image: art/05-quickstart-map.png
