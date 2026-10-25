@@ -1,0 +1,25 @@
+[project]
+name = "greathelm-maps"
+version = "0.1.0"
+description = "Build print-ready Greathelm hex maps from artwork"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "pillow>=10.0",
+    "pymupdf>=1.24",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+greathelm-maps = "greathelm_maps.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

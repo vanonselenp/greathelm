@@ -1,0 +1,33 @@
+# Rebuilds the Greathelm print-and-cut map sheets, plus two extra examples.
+# Artwork: run `uv run python scripts/extract_example_art.py` first.
+#
+# Every key under `defaults` can be overridden per map.
+
+defaults:
+  paper: A4            # A5 A4 A3 A2 A1 Letter Legal Tabloid, or "300x400mm"
+  hex_size: 15mm       # flat-to-flat
+  bleed: 2mm
+  dpi: 300             # artwork is downsampled to this, never upsampled
+  rotate: 90           # degrees anticlockwise; the source art is portrait
+  zones:
+    depth: 3           # columns per side, counting the one cut by the edge
+
+maps:
+  - {image: art/01-village-well.png, title: 01 / Village Well, size: 185x131.25mm}
+  - {image: art/02-broken-gate.png, title: 02 / Broken Gate, size: 185x131.25mm}
+  - {image: art/03-bridge-and-ford.png, title: 03 / Bridge and Ford, size: 185x131.25mm}
+  - {image: art/04-ruined-chapel.png, title: 04 / Ruined Chapel, size: 185x131.25mm}
+  - {image: art/05-quickstart-map.png, title: 05 / Quickstart Map, size: 185x131.25mm}
+
+  # # Sized by hex count: 14 whole columns, 9 hexes tall, no zones.
+  # - image: art/05-quickstart-map.png
+  #   title: Quickstart (whole hexes)
+  #   hexes: 14x9
+  #   zones: false
+
+  # # Too big for A4, so it is split into overlapping pieces.
+  # - image: art/03-bridge-and-ford.png
+  #   title: Bridge and Ford (large)
+  #   size: 400x280mm
+  #   hex_size: 30mm
+  #   zones: {depth: 2}
