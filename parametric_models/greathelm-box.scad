@@ -21,23 +21,23 @@ rulebook_t = 3;         // A6 booklet, lies landscape on the maps
 card_slack = 1.0;       // headroom over the card stack
 card_clear = 0.75;      // gap from card edge to wall, per side
 
+/* [Wells] */
+well_h = 20;            // tested: six jumbled models sit below 20mm
+
 /* [Models] */
 models_per_side = 6;
 base_d = 15;            // model base diameter
-model_h = 28;           // tallest model, base underside to weapon tip
-model_pose = "standing"; // [standing, lying]
-model_slop = 2;         // extra room per model
+model_slop = 2;         // well area allows for six standing models
 
 /* [Dice] */
 dice_per_side = 10;
+dice_layers = 1;
 die = 12;
 die_slop = 0.6;
 
 /* [Tokens] */
-tokens_per_side = 20;   // wounds and momentum together
-token_d = 10;
-token_t = 2;
-token_pack = 1.6;       // loose tokens take more room than neat stacks
+// Token size and counts come from greathelm-tokens.scad.
+token_fill = 0.5;       // token bounding boxes as a share of the well. Lower = roomier.
 
 /* [Box] */
 wall_inner_t = 1.2;     // base wall left above the lid rebate
@@ -73,6 +73,11 @@ bed = 180;              // A1 Mini
 $fn = 48;
 eps = 0.01;
 
+use <greathelm-tokens.scad>
+tk_n    = tokens_per_side();
+tk_area = tokens_area_per_side();   // sum of token bounding boxes, one player
+tk_t    = token_thickness();
+
 // ---------- derived ----------
 wall   = wall_inner_t + lid_clear + lid_skirt_t;
 step   = lid_skirt_t + lid_clear;          // rebate depth into the wall
@@ -85,7 +90,7 @@ card_stack_h = map_count * map_t + player_card_count * player_card_t
              + rulebook_t + card_slack;
 
 cell     = base_d + model_slop;
-pocket_h = model_pose == "standing" ? model_h + 1 : base_d + 2;
+pocket_h = well_h;
 tray_h   = tray_floor_t + pocket_h;
 
 base_h   = floor_t + tray_h + tray_top_clear + card_stack_h;
@@ -101,21 +106,18 @@ avail_d = tray_d - 2 * tray_wall_t;        // every well spans the tray's short 
 // model well
 m_rows = max(1, floor(avail_d / cell));
 m_cols = ceil(models_per_side / m_rows);
-m_len  = model_pose == "standing" ? cell : model_h + model_slop;
-m_w    = m_cols * m_len;
+m_w    = m_cols * cell;
 
 // dice well
 d_cell   = die + die_slop;
-d_layers = max(1, floor((pocket_h - 0.5) / die));
+d_layers = dice_layers;
 d_depth  = d_layers * die + 0.5;
 d_rows   = max(1, floor(avail_d / d_cell));
 d_cols   = ceil(ceil(dice_per_side / d_layers) / d_rows);
 d_w      = max(finger_min, d_cols * d_cell);
 
-// token well
-t_stacks = ceil(tokens_per_side * token_t * token_pack / (pocket_h - 1));
-t_rows   = max(1, floor(avail_d / (token_d + 1)));
-t_w      = max(finger_min, ceil(t_stacks / t_rows) * (token_d + 1));
+// token well: loose pile
+t_w = max(finger_min, ceil(tk_area * tk_t / token_fill / (avail_d * pocket_h)));
 
 // x positions along the tray
 x_m = tray_wall_t;
@@ -129,14 +131,14 @@ echo(str("BOX outside ", out_w, " x ", out_d, " x ", closed_h, " closed"));
 echo(str("BED margin ", (bed - out_w) / 2, " per side on the long axis"));
 echo(str("CARD stack ", card_stack_h, " incl. slack"));
 echo(str("TRAY ", tray_w, " x ", tray_d, " x ", tray_h, ", wells ", pocket_h, " deep"));
-echo(str("WELL models ", m_w, " x ", avail_d, " (", m_cols, "x", m_rows, " ", model_pose, ")"));
-echo(str("WELL dice ", d_w, " x ", avail_d, " x ", d_depth, " (", d_layers, " layers)"));
-echo(str("WELL tokens ", t_w, " x ", avail_d, " x ", pocket_h));
+echo(str("WELL models ", m_w, " x ", avail_d, " x ", pocket_h));
+echo(str("WELL dice ", d_w, " x ", avail_d, " x ", d_depth, " (", d_cols, "x", d_rows, ", ", d_layers, " layer)"));
+echo(str("WELL tokens ", t_w, " x ", avail_d, " x ", pocket_h, " (", tk_n, " tokens)"));
 echo(str("WELL terrain ", r_w, " x ", avail_d, " x ", pocket_h));
 echo(str("DICE TRAY base empty ", in_w, " x ", in_d, " x ", base_h - floor_t));
 
 if (out_w > bed || out_d > bed) echo("WARNING: box is larger than the bed");
-assert(r_w > 10, str("No room left for terrain: ", r_w, " mm. Shrink a well or switch model_pose."));
+assert(r_w > 10, str("No room left for terrain: ", r_w, " mm. Shrink a well."));
 assert(d_depth <= pocket_h, "Dice well deeper than tray");
 
 // ---------- helpers ----------
@@ -156,22 +158,20 @@ module scoop_pocket(w, d, h, r) {
 }
 
 // ---------- parts ----------
+// Wells left to right: models, dice, tokens, terrain.
+// Dice and tokens get scooped floors. Models and terrain stay square.
 module tray() {
   over = 1;  // pockets break through the top
   difference() {
     linear_extrude(tray_h) rrect([tray_w, tray_d], 1.5);
-    // models: flat floor so they stand
     translate([x_m, tray_wall_t, tray_h - pocket_h])
-      scoop_pocket(m_w, avail_d, pocket_h + over, 2);
-    // dice
+      cube([m_w, avail_d, pocket_h + over]);
     translate([x_d, tray_wall_t, tray_h - d_depth])
       scoop_pocket(d_w, avail_d, d_depth + over, scoop_r);
-    // tokens
     translate([x_t, tray_wall_t, tray_h - pocket_h])
       scoop_pocket(t_w, avail_d, pocket_h + over, scoop_r);
-    // terrain
     translate([x_r, tray_wall_t, tray_h - pocket_h])
-      scoop_pocket(r_w, avail_d, pocket_h + over, 2);
+      cube([r_w, avail_d, pocket_h + over]);
   }
 }
 
