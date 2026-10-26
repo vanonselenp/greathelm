@@ -36,7 +36,16 @@ die = 12;
 die_slop = 0.6;
 
 /* [Tokens] */
-// Token size and counts come from greathelm-tokens.scad.
+// Counts per player. Sizes match greathelm-tokens.scad.
+damage_count = 6;
+momentum_count = 12;
+defence_count = 4;      // riposte, parry, block, dodge
+death_count = 5;
+token_d = 15;           // teardrop and disc diameter
+token_tip = 5.5;        // teardrop point past the circle
+shield_w = 15;
+shield_h = 20;
+token_t = 3;
 token_fill = 0.5;       // token bounding boxes as a share of the well. Lower = roomier.
 
 /* [Box] */
@@ -73,10 +82,11 @@ bed = 180;              // A1 Mini
 $fn = 48;
 eps = 0.01;
 
-use <greathelm-tokens.scad>
-tk_n    = tokens_per_side();
-tk_area = tokens_area_per_side();   // sum of token bounding boxes, one player
-tk_t    = token_thickness();
+tk_n    = damage_count + momentum_count + defence_count + death_count;
+tk_area = (damage_count + momentum_count) * token_d * (token_d + token_tip)
+        + defence_count * shield_w * shield_h
+        + death_count * token_d * token_d;   // sum of token bounding boxes, one player
+tk_t    = token_t;
 
 // ---------- derived ----------
 wall   = wall_inner_t + lid_clear + lid_skirt_t;
