@@ -71,6 +71,7 @@ maps:
         ("{image: art.png}", "exactly one of"),
         ("{image: art.png, size: 10x10, hexes: 3x3}", "exactly one of"),
         ("{image: art.png, size: 10x10, rotate: 45}", "rotate"),
+        ("{image: art.png, size: 10x10, layout: tight}", "layout"),
         ("{image: art.png, size: 10x10, colour: red}", "unknown key"),
         ("{image: art.png, size: 10x10, grid: {over: {color: nope, width: 1}}}", "hex colour"),
     ],

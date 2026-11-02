@@ -36,6 +36,7 @@ DEFAULTS = {
     "min_dpi": 150,
     "overlap": "10mm",
     "rotate": 0,
+    "layout": "auto",
     "grid": {
         "under": {"color": "#F4EEDB", "width": "0.725mm"},
         "over": {"color": "#363D32", "width": "0.35mm"},
@@ -93,6 +94,7 @@ class MapSpec:
     height: float
     sized_by_hexes: bool
     rotate: int
+    layout: str
     header: str
     paper: Paper
     margin: float
@@ -250,6 +252,10 @@ def build_map_spec(entry: dict, defaults: dict, base_dir: Path, index: int) -> M
     if rotate not in (0, 90, 180, 270):
         raise ConfigError(f"{where}.rotate: must be 0, 90, 180 or 270")
 
+    layout = data["layout"]
+    if layout not in ("auto", "standard", "compact"):
+        raise ConfigError(f"{where}.layout: must be auto, standard or compact")
+
     grid = data["grid"]
     check_keys(grid, {"under", "over"}, f"{where}.grid")
 
@@ -260,6 +266,7 @@ def build_map_spec(entry: dict, defaults: dict, base_dir: Path, index: int) -> M
         height=height,
         sized_by_hexes=sized_by_hexes,
         rotate=rotate,
+        layout=layout,
         header=str(data["header"]),
         paper=parse_paper(data["paper"]),
         margin=parse_length(data["margin"], f"{where}.margin"),

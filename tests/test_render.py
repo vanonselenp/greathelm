@@ -5,6 +5,8 @@ from PIL import Image
 from greathelm_maps import build, load_config
 from greathelm_maps.render import choose_layout, map_area, prepare_image, split_axis
 
+MM = 72 / 25.4
+
 
 @pytest.fixture
 def art(tmp_path):
@@ -32,13 +34,13 @@ def test_split_axis():
 
 def test_example_size_fits_one_landscape_a4(tmp_path, art):
     (spec,) = specs(tmp_path, art, "size: 185x131.25mm")
-    landscape, pieces = choose_layout(spec)
+    landscape, _, pieces = choose_layout(spec)
     assert landscape and len(pieces) == 1
 
 
 def test_large_map_tiles_cover_map_exactly(tmp_path, art):
     (spec,) = specs(tmp_path, art, "size: 600x400mm")
-    landscape, pieces = choose_layout(spec)
+    landscape, _, pieces = choose_layout(spec)
     assert len(pieces) > 1
     area = map_area(spec, landscape)
     covered = sum(p.cut.width * p.cut.height for p in pieces)
@@ -52,7 +54,7 @@ def test_large_map_tiles_cover_map_exactly(tmp_path, art):
 
 def test_orientation_follows_map_shape(tmp_path, art):
     (spec,) = specs(tmp_path, art, "size: 100x150mm")
-    landscape, pieces = choose_layout(spec)
+    landscape, _, pieces = choose_layout(spec)
     assert not landscape and len(pieces) == 1
 
 
@@ -87,3 +89,36 @@ def test_build_reports_low_dpi_and_numbers_sheets(tmp_path, art):
     assert doc.page_count == total
     assert f"SHEET {total} OF {total}" in doc[-1].get_text()
     assert "PIECE" in doc[-1].get_text()
+
+
+def test_a5_map_fits_one_sheet_with_compact_layout(tmp_path, art):
+    (spec,) = specs(tmp_path, art, "size: 170x120.21mm, paper: A5, margin: 5mm")
+    landscape, compact, pieces = choose_layout(spec)
+    assert landscape and compact and len(pieces) == 1
+
+
+def test_standard_layout_is_kept_when_it_fits(tmp_path, art):
+    (spec,) = specs(tmp_path, art, "size: 185x131.25mm")
+    _, compact, _ = choose_layout(spec)
+    assert not compact
+
+
+def test_forced_standard_layout_tiles_on_a5(tmp_path, art):
+    (spec,) = specs(tmp_path, art, "size: 170x120.21mm, paper: A5, margin: 5mm, layout: standard")
+    _, compact, pieces = choose_layout(spec)
+    assert not compact and len(pieces) == 2
+
+
+def test_compact_text_stays_off_the_map(tmp_path, art):
+    p = tmp_path / "maps.yaml"
+    p.write_text(f"maps:\n  - {{image: {art.name}, size: 170x120.21mm, paper: A5, margin: 5mm}}\n")
+    out = tmp_path / "out.pdf"
+    build(load_config(p), out)
+    page = pymupdf.open(out)[0]
+    image = page.get_image_rects(page.get_images()[0][0])[0]
+    text = page.get_text()
+    assert "SHEET 1 OF 1" in text and "SCALE CHECK" in text
+    for block in page.get_text("blocks"):
+        top, bottom = block[1], block[3]
+        assert bottom <= image.y0 or top >= image.y1
+        assert top >= 5 * MM - 0.5 and bottom <= page.rect.height - 5 * MM + 0.5

@@ -1,27 +1,34 @@
-# Rebuilds the Greathelm print-and-cut map sheets, plus two extra examples.
-# Artwork: run `uv run python scripts/extract_example_art.py` first.
+# Greathelm maps at 170 x 120.21 mm, one per A5 sheet.
+# Maps 01-05: run `uv run python scripts/extract_example_art.py` first.
 #
 # Every key under `defaults` can be overridden per map.
 
 defaults:
-  paper: A4            # A5 A4 A3 A2 A1 Letter Legal Tabloid, or "300x400mm"
+  paper: A5            # A5 A4 A3 A2 A1 Letter Legal Tabloid, or "300x400mm"
+  margin: 5mm          # A5 needs <= 5.3mm to fit one map per sheet
   hex_size: 15mm       # flat-to-flat
   bleed: 2mm
   dpi: 300             # artwork is downsampled to this, never upsampled
-  rotate: 90           # degrees anticlockwise; the source art is portrait
+  rotate: 0            # degrees anticlockwise; set 90 per map for portrait art
   zones:
     depth: 3           # columns per side, counting the one cut by the edge
 
 maps:
-  - {image: art/01-village-well.png, title: 01 / Village Well, size: 170x120.21mm}
-  - {image: art/02-broken-gate.png, title: 02 / Broken Gate, size: 170x120.21mm}
-  - {image: art/03-bridge-and-ford.png, title: 03 / Bridge and Ford, size: 170x120.21mm}
-  - {image: art/04-ruined-chapel.png, title: 04 / Ruined Chapel, size: 170x120.21mm}
-  - {image: art/05-quickstart-map.png, title: 05 / Quickstart Map, size: 170x120.21mm}
+  # - {image: art/01-village-well.png, title: 01 / Village Well, size: 170x120.21mm}
+  # - {image: art/02-broken-gate.png, title: 02 / Broken Gate, size: 170x120.21mm}
+  # - {image: art/03-bridge-and-ford.png, title: 03 / Bridge and Ford, size: 170x120.21mm}
+  # - {image: art/04-ruined-chapel.png, title: 04 / Ruined Chapel, size: 170x120.21mm}
+  - {image: art/05-quickstart-map.png, title: 05 / Quickstart Map, size: 170x120.21mm, rotate: 90}
+  - {image: art/06-crossroads.png, title: 06 / Crossroads, size: 170x120.21mm}
+  - {image: art/07-marketsquare.png, title: 07 / Market Square, size: 170x120.21mm}
+  - {image: art/08-dockside.png, title: 08 / Dockside, size: 170x120.21mm}
+  - {image: art/09-stable.png, title: 09 / Stable, size: 170x120.21mm}
+  - {image: art/10-bridge.png, title: 10 / Bridge, size: 170x120.21mm}
 
   # # Sized by hex count: 14 whole columns, 9 hexes tall, no zones.
   # - image: art/05-quickstart-map.png
   #   title: Quickstart (whole hexes)
+  #   rotate: 90
   #   hexes: 14x9
   #   zones: false
 

@@ -16,6 +16,8 @@ from .geometry import GridLines, HexGrid, Rect, grid_lines
 PT = 72 / 25.4  # points per mm
 
 HEADER_SPACE = 20.0  # mm reserved below the top margin, and again above the bottom margin
+COMPACT_TEXT = 6.5  # pt; compact sheets fit their text between the crop marks
+COMPACT_BAND = 5.6  # mm of height the compact header or footer needs
 MARK_GAP = 1.0  # gap between the bleed edge and a crop mark
 MARK_LEN = 4.0
 MARK_SPACE = MARK_GAP + MARK_LEN
@@ -55,6 +57,7 @@ class Sheet:
     spec: MapSpec
     piece: Piece
     landscape: bool
+    compact: bool
     number: int = 0
 
 
@@ -73,11 +76,16 @@ def page_size(spec: MapSpec, landscape: bool) -> tuple[float, float]:
     return (h, w) if landscape else (w, h)
 
 
-def map_area(spec: MapSpec, landscape: bool) -> Rect:
-    """Page region the visible map (bleed included) may occupy, before marks."""
+def map_area(spec: MapSpec, landscape: bool, compact: bool = False) -> Rect:
+    """Page region the visible map (bleed included) may occupy, before marks.
+
+    Compact sheets have no header or footer rows; their text goes in the bands
+    between the crop marks, which must be at least ``COMPACT_BAND`` tall.
+    """
     pw, ph = page_size(spec, landscape)
     m = spec.margin
-    return Rect(m + MARK_SPACE, m + HEADER_SPACE + MARK_SPACE, pw - m - MARK_SPACE, ph - m - HEADER_SPACE - MARK_SPACE)
+    top = max(MARK_SPACE, COMPACT_BAND + MARK_GAP) if compact else HEADER_SPACE + MARK_SPACE
+    return Rect(m + MARK_SPACE, m + top, pw - m - MARK_SPACE, ph - m - top)
 
 
 def split_axis(length: float, avail: float, bleed: float, overlap: float) -> list[float] | None:
@@ -93,8 +101,8 @@ def split_axis(length: float, avail: float, bleed: float, overlap: float) -> lis
     return [length * k / n for k in range(n + 1)]
 
 
-def plan_pieces(spec: MapSpec, landscape: bool) -> list[Piece] | None:
-    area = map_area(spec, landscape)
+def plan_pieces(spec: MapSpec, landscape: bool, compact: bool = False) -> list[Piece] | None:
+    area = map_area(spec, landscape, compact)
     xs = split_axis(spec.width, area.width, spec.bleed, spec.overlap)
     ys = split_axis(spec.height, area.height, spec.bleed, spec.overlap)
     if xs is None or ys is None:
@@ -115,18 +123,23 @@ def plan_pieces(spec: MapSpec, landscape: bool) -> list[Piece] | None:
     return pieces
 
 
-def choose_layout(spec: MapSpec) -> tuple[bool, list[Piece]]:
-    """Pick the orientation needing fewest sheets; ties follow the map's shape."""
+def choose_layout(spec: MapSpec) -> tuple[bool, bool, list[Piece]]:
+    """Pick (landscape, compact, pieces) needing the fewest sheets.
+
+    Ties prefer the standard header/footer, then the map's own orientation.
+    """
+    modes = {"standard": (False,), "compact": (True,), "auto": (False, True)}[spec.layout]
     options = []
-    for landscape in (True, False):
-        pieces = plan_pieces(spec, landscape)
-        if pieces:
-            prefers = landscape == (spec.width >= spec.height)
-            options.append((len(pieces), not prefers, landscape, pieces))
+    for compact in modes:
+        for landscape in (True, False):
+            pieces = plan_pieces(spec, landscape, compact)
+            if pieces:
+                prefers = landscape == (spec.width >= spec.height)
+                options.append((len(pieces), compact, not prefers, landscape, pieces))
     if not options:
         raise ValueError(f"{spec.title}: paper {spec.paper.name} is too small to print anything after margins")
-    _, _, landscape, pieces = min(options, key=lambda o: o[:3])
-    return landscape, pieces
+    _, compact, _, landscape, pieces = min(options, key=lambda o: o[:4])
+    return landscape, compact, pieces
 
 
 def prepare_image(spec: MapSpec) -> tuple[Image.Image, float]:
@@ -265,6 +278,61 @@ def text_at(page, x_mm: float, y_mm: float, text: str, size: float, bold: bool =
     page.insert_text(pymupdf.Point(x, y_mm * PT), text, fontname=font, fontsize=size, color=(0, 0, 0))
 
 
+def text_width(text: str, size: float, bold: bool = False) -> float:
+    return pymupdf.get_text_length(text, "hebo" if bold else "helv", size) / PT
+
+
+def sheet_title(spec: MapSpec, piece: Piece) -> str:
+    title = spec.title.upper()
+    if piece.rows * piece.cols > 1:
+        index = piece.row * piece.cols + piece.col + 1
+        title += f" / PIECE {index} OF {piece.rows * piece.cols} (ROW {piece.row + 1}, COL {piece.col + 1})"
+    return title
+
+
+def finished_note(spec: MapSpec, piece: Piece) -> str:
+    size = f"{fmt(spec.width)} x {fmt(spec.height)} mm"
+    if piece.rows * piece.cols == 1:
+        return f"Finished size: {size}. Cut between corner marks; {fmt(spec.bleed)} mm bleed included."
+    return (
+        f"Finished map: {size} in {piece.rows * piece.cols} pieces. Cut on the corner marks; "
+        "lay each piece over its neighbour's overlap, edge on the dashed marks."
+    )
+
+
+def draw_scale_bar(page, x0: float, y: float, tick: float) -> None:
+    shape = page.new_shape()
+    shape.draw_line(to_page(x0, y, 0, 0), to_page(x0 + SCALE_BAR, y, 0, 0))
+    for x in (x0, x0 + SCALE_BAR):
+        shape.draw_line(to_page(x, y - tick, 0, 0), to_page(x, y + tick, 0, 0))
+    shape.finish(color=(0, 0, 0), width=MARK_WIDTH * PT, closePath=False)
+    shape.commit()
+
+
+def draw_compact_furniture(page, sheet: Sheet, total: int, vis_top: float, vis_bottom: float) -> None:
+    """Two centred lines above the map and two below, between the crop marks."""
+    spec, piece = sheet.spec, sheet.piece
+    pw, _ = page_size(spec, sheet.landscape)
+    size, cx = COMPACT_TEXT, pw / 2
+    line = size / PT * 1.15
+
+    head = f"{spec.header} / {spec.paper.name} PRINT & CUT"
+    rest = f"  \u00b7  SHEET {sheet.number} OF {total}  \u00b7  {sheet_title(spec, piece)}"
+    left = cx - (text_width(head, size, bold=True) + text_width(rest, size)) / 2
+    first = vis_top - MARK_GAP - line - 0.6
+    text_at(page, left, first, head, size, bold=True)
+    text_at(page, left + text_width(head, size, bold=True), first, rest, size)
+    text_at(page, cx, first + line, INSTRUCTIONS, size, align="center")
+
+    label = f"SCALE CHECK: this line must measure {fmt(SCALE_BAR)} mm"
+    gap = 3.0
+    left = cx - (text_width(label, size) + gap + SCALE_BAR) / 2
+    base = vis_bottom + MARK_GAP + line
+    text_at(page, left, base, label, size)
+    draw_scale_bar(page, left + text_width(label, size) + gap, base - size / PT * 0.35, 1.0)
+    text_at(page, cx, base + line, finished_note(spec, piece), size, align="center")
+
+
 def draw_furniture(page, sheet: Sheet, total: int) -> None:
     spec, piece = sheet.spec, sheet.piece
     pw, ph = page_size(spec, sheet.landscape)
@@ -272,39 +340,20 @@ def draw_furniture(page, sheet: Sheet, total: int) -> None:
     text_at(page, m, m + 3, f"{spec.header} / {spec.paper.name} PRINT & CUT", 10, bold=True)
     text_at(page, pw - m, m + 3, f"SHEET {sheet.number} OF {total}", 8, align="right")
     text_at(page, m, m + 9, INSTRUCTIONS, 8)
-    title = spec.title.upper()
-    if piece.rows * piece.cols > 1:
-        index = piece.row * piece.cols + piece.col + 1
-        title += f" / PIECE {index} OF {piece.rows * piece.cols} (ROW {piece.row + 1}, COL {piece.col + 1})"
-    text_at(page, pw - m, m + 9, title, 8, align="right")
+    text_at(page, pw - m, m + 9, sheet_title(spec, piece), 8, align="right")
 
     cx = pw / 2
     bar_y = ph - m - 8
     text_at(page, cx, bar_y - 4, f"SCALE CHECK: this line must measure {fmt(SCALE_BAR)} mm", 7.5, align="center")
-    shape = page.new_shape()
-    x0, x1 = cx - SCALE_BAR / 2, cx + SCALE_BAR / 2
-    shape.draw_line(to_page(x0, bar_y, 0, 0), to_page(x1, bar_y, 0, 0))
-    for x in (x0, x1):
-        shape.draw_line(to_page(x, bar_y - 1.5, 0, 0), to_page(x, bar_y + 1.5, 0, 0))
-    shape.finish(color=(0, 0, 0), width=MARK_WIDTH * PT, closePath=False)
-    shape.commit()
-
-    size = f"{fmt(spec.width)} x {fmt(spec.height)} mm"
-    if piece.rows * piece.cols == 1:
-        note = f"Finished size: {size}. Cut between corner marks; {fmt(spec.bleed)} mm bleed included."
-    else:
-        note = (
-            f"Finished map: {size} in {piece.rows * piece.cols} pieces. Cut on the corner marks; "
-            "lay each piece over its neighbour's overlap, edge on the dashed marks."
-        )
-    text_at(page, cx, bar_y + 5, note, 7.5, align="center")
+    draw_scale_bar(page, cx - SCALE_BAR / 2, bar_y, 1.5)
+    text_at(page, cx, bar_y + 5, finished_note(spec, piece), 7.5, align="center")
 
 
 def plan(specs: list[MapSpec]) -> list[Sheet]:
     sheets = []
     for spec in specs:
-        landscape, pieces = choose_layout(spec)
-        sheets.extend(Sheet(spec, p, landscape) for p in pieces)
+        landscape, compact, pieces = choose_layout(spec)
+        sheets.extend(Sheet(spec, p, landscape, compact) for p in pieces)
     for n, sheet in enumerate(sheets, 1):
         sheet.number = n
     return sheets
@@ -329,13 +378,16 @@ def build(specs: list[MapSpec], output: Path) -> list[MapReport]:
 
         pw, ph = page_size(spec, sheet.landscape)
         page = doc.new_page(width=pw * PT, height=ph * PT)
-        area = map_area(spec, sheet.landscape)
+        area = map_area(spec, sheet.landscape, sheet.compact)
         vis = piece.visible
         dx = (area.x0 + area.x1) / 2 - (vis.x0 + vis.x1) / 2
         dy = (area.y0 + area.y1) / 2 - (vis.y0 + vis.y1) / 2
         draw_map(page, spec, img, piece, dx, dy)
         draw_marks(page, spec, piece, dx, dy)
-        draw_furniture(page, sheet, len(sheets))
+        if sheet.compact:
+            draw_compact_furniture(page, sheet, len(sheets), vis.y0 + dy, vis.y1 + dy)
+        else:
+            draw_furniture(page, sheet, len(sheets))
 
     first = specs[0]
     doc.set_metadata(

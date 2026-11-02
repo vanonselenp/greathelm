@@ -23,6 +23,7 @@ defaults:              # every key here can also be set per map
   min_dpi: 150         # warn below this
   overlap: 10mm        # glue flap between pieces of a tiled map
   rotate: 0            # 0/90/180/270, anticlockwise
+  layout: auto         # auto | standard | compact (see below)
   grid:
     under: {color: "#F4EEDB", width: 0.725mm}
     over:  {color: "#363D32", width: 0.35mm}
@@ -61,6 +62,14 @@ Units: bare numbers are mm; `mm`, `cm`, `in` and `pt` are accepted.
   Every piece except those in the last column and last row carries an overlap
   flap on its right and bottom edges. Cut each piece on its corner marks and
   lay it over its neighbour's flap, lining the edge up with the dashed marks.
+- **Compact layout:** the standard sheet keeps a 20 mm header and footer
+  band. When that would split a map but the compact layout fits it on fewer
+  sheets, `layout: auto` switches to compact: two short lines of text above
+  the map and two below, squeezed in between the crop marks.
+
+  For example, a 170 x 120.21 mm map on A5 fits on one sheet in the compact
+  layout with `margin: 5mm`. It still needs two sheets with the default
+  10 mm margin.
 - **Sheet numbering:** sheets are numbered across the whole PDF.
 
 ## Tests
