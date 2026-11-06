@@ -18,7 +18,7 @@ maps:
   # - {image: art/02-broken-gate.png, title: 02 / Broken Gate, size: 170x120.21mm}
   # - {image: art/03-bridge-and-ford.png, title: 03 / Bridge and Ford, size: 170x120.21mm}
   # - {image: art/04-ruined-chapel.png, title: 04 / Ruined Chapel, size: 170x120.21mm}
-  - {image: art/05-quickstart-map.png, title: 05 / Quickstart Map, size: 170x120.21mm, rotate: 90}
+  # - {image: art/05-quickstart-map.png, title: 05 / Quickstart Map, size: 170x120.21mm, rotate: 90}
   - {image: art/06-crossroads.png, title: 06 / Crossroads, size: 170x120.21mm}
   - {image: art/07-marketsquare.png, title: 07 / Market Square, size: 170x120.21mm}
   - {image: art/08-dockside.png, title: 08 / Dockside, size: 170x120.21mm}
